@@ -1,5 +1,79 @@
 # Changelog
 
+## [v1.57.0](https://github.com/symfony/maker-bundle/releases/tag/v1.57.0)
+
+*March 22nd, 2024*
+
+### Feature
+
+- [#1488](https://github.com/symfony/maker-bundle/pull/1488) [make:*] allow the option to use ULID's for entity id's - *@jrushlow*
+- [#1484](https://github.com/symfony/maker-bundle/pull/1484) [make:auth] use `getString()` instead of `get()` - *@seb-jean*
+- [#1477](https://github.com/symfony/maker-bundle/pull/1477) [make:message] Modernize Messenger\Message class, use PHP8 features - *@lyrixx*
+- [#1475](https://github.com/symfony/maker-bundle/pull/1475) [make:user] better exception msg for non-attribute mapping entities - *@jrushlow*
+- [#1474](https://github.com/symfony/maker-bundle/pull/1474) [make:entity] Prevent entity name from having an accent - *@Fan2Shrek*
+- [#1473](https://github.com/symfony/maker-bundle/pull/1473) [make:*] use `getPayload()` instead of accessing `request` on Request objects - *@Fan2Shrek*
+- [#1464](https://github.com/symfony/maker-bundle/pull/1464) [make:registration-form] use validateEmailConfirmationFromRequest() when verifying emails - *@jrushlow*
+- [#1329](https://github.com/symfony/maker-bundle/pull/1329) Add support for generating UUID id fields in entities - *@Coffee2CodeNL*
+
+### Bug
+
+- [#1490](https://github.com/symfony/maker-bundle/pull/1490) [make:entity] Fix a small typo in a make:entity error message - *maelanleborgne*
+- [#1486](https://github.com/symfony/maker-bundle/pull/1486) [make:entity] Fix exception message if mercure bundle not found with --broadcast - *@cavasinf*
+
+## [v1.56.0](https://github.com/symfony/maker-bundle/releases/tag/v1.56.0)
+
+*March 4th, 2024*
+
+### Feature
+
+- [#1465](https://github.com/symfony/maker-bundle/pull/1465) [make:twig-component] default to "no" when asking if is live component - *@jrushlow*
+- [#1463](https://github.com/symfony/maker-bundle/pull/1463) [make:serializer:normalizer] stop using CacheableSupportsMethodInterface - *@jrushlow*
+- [#1460](https://github.com/symfony/maker-bundle/pull/1460) [make:user] handle ORM\Column.unique deprecation - use ORM\UniqueConstrain - *@maelanleborgne*
+- [#1413](https://github.com/symfony/maker-bundle/pull/1413) [DoctrineHelper] handle property type for custom doctrine type - *@IndraGunawan*
+- [#1405](https://github.com/symfony/maker-bundle/pull/1405) [make:reset-password] increase password strength & check for comprimised password - *@Spomky*
+- [#1402](https://github.com/symfony/maker-bundle/pull/1402) [make:entity] remove PasswordUpgraderInterface annotation in phpdoc - *@AurelienPillevesse*
+- [#1393](https://github.com/symfony/maker-bundle/pull/1393) [make:*] add `single_text` widget for all date types - *@tacman*
+- [#1345](https://github.com/symfony/maker-bundle/pull/1345) [make:migration] Format the generated migration sql by passing `--formatted` to the command - *@StevenRenaux*
+- [#1243](https://github.com/symfony/maker-bundle/pull/1243) [make:registration] drop guard authentication support - *@jrushlow*
+- [#516](https://github.com/symfony/maker-bundle/pull/516) [make:migration] add ability to specify a configuration file - *@LeJeanbono*
+
+### Bug
+
+- [#1472](https://github.com/symfony/maker-bundle/pull/1472) [make:migration] --configuration is available in all versions - *@jrushlow*
+- [#1469](https://github.com/symfony/maker-bundle/pull/1469) - [make:form] fix generated field options_code indentation - *@IndraGunawan*
+- [#1468](https://github.com/symfony/maker-bundle/pull/1468) - [make:crud] fixed issues with make CRUD test Controller generation - *@dr-matt-smith*
+- [#1461](https://github.com/symfony/maker-bundle/pull/1461) - [make:auth] Fix 'always-remember-me' param always set to true - *@maelanleborgne*
+
+## [v1.55.1](https://github.com/symfony/maker-bundle/releases/tag/v1.55.1)
+
+*February 21st, 2024*
+
+### Bug
+
+- [#1458](https://github.com/symfony/maker-bundle/pull/1458) - [make:entity] fix require mercure before asking to broadcast entity updates - *@jrushlow*
+
+## [v1.55.0](https://github.com/symfony/maker-bundle/releases/tag/v1.55.0)
+
+*February 20th, 2024*
+
+### Feature
+
+- [#1455](https://github.com/symfony/maker-bundle/pull/1455) - [make:registration-form] Removal of the createView() method, as it is no longer required to render the form - *@mdoutreluingne*
+- [#1452](https://github.com/symfony/maker-bundle/pull/1452) - [make:entity] remove PhpCompatUtil constructor argument - *@jrushlow*
+- [#1444](https://github.com/symfony/maker-bundle/pull/1444) - [make:command] deprecate passing PhpCompatUtil to the constructor - *@jrushlow*
+- [#1443](https://github.com/symfony/maker-bundle/pull/1443) - [make:controller] deprecate passing PhpCompatUtil to the constructor - *@jrushlow*
+- [#1429](https://github.com/symfony/maker-bundle/pull/1429) - [make:*] upgrade bundled PHP-CS-Fixer to v3.49.0 - *@jrushlow*
+- [#1411](https://github.com/symfony/maker-bundle/pull/1411) - [make:user] Add phpdocs in class generated by make:user for PHPStan - *@maelanleborgne*
+- [#1273](https://github.com/symfony/maker-bundle/pull/1273) - [make:serializer:normalizer] Inject a NormalizerInterface instead of an ObjectNormalize - *@mtarld*
+
+### Bug
+
+- [#1449](https://github.com/symfony/maker-bundle/pull/1449) - [tests] fix broken assignment operator - addExtraDependencies() - *@jrushlow*
+- [#1448](https://github.com/symfony/maker-bundle/pull/1448) - [make:entity] only show supported types in cli wizard - *@jrushlow*
+- [#1445](https://github.com/symfony/maker-bundle/pull/1445) - [make:entity] use ux-turbo instead of ux-turbo-mercure - *@jrushlow*
+- [#1422](https://github.com/symfony/maker-bundle/pull/1422) - Generator verifies if class exists before altering class name - *@Antarian*
+- [#1283](https://github.com/symfony/maker-bundle/pull/1283) - don't install development files when adding maker-bundle to a project - *@dmitryuk*
+
 ## [v1.54.0](https://github.com/symfony/maker-bundle/releases/tag/v1.54.0)
 
 *February 6th, 2024*

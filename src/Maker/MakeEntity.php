@@ -20,17 +20,19 @@ use Symfony\Bundle\MakerBundle\Doctrine\EntityClassGenerator;
 use Symfony\Bundle\MakerBundle\Doctrine\EntityRegenerator;
 use Symfony\Bundle\MakerBundle\Doctrine\EntityRelation;
 use Symfony\Bundle\MakerBundle\Doctrine\ORMDependencyBuilder;
+use Symfony\Bundle\MakerBundle\Exception\RuntimeCommandException;
 use Symfony\Bundle\MakerBundle\FileManager;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Bundle\MakerBundle\InputAwareMakerInterface;
 use Symfony\Bundle\MakerBundle\InputConfiguration;
+use Symfony\Bundle\MakerBundle\Maker\Common\UidTrait;
 use Symfony\Bundle\MakerBundle\Str;
 use Symfony\Bundle\MakerBundle\Util\ClassDetails;
 use Symfony\Bundle\MakerBundle\Util\ClassSource\Model\ClassProperty;
 use Symfony\Bundle\MakerBundle\Util\ClassSourceManipulator;
 use Symfony\Bundle\MakerBundle\Util\CliOutputHelper;
-use Symfony\Bundle\MakerBundle\Util\PhpCompatUtil;
 use Symfony\Bundle\MakerBundle\Validator;
+use Symfony\Bundle\MercureBundle\DependencyInjection\MercureExtension;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -46,9 +48,10 @@ use Symfony\UX\Turbo\Attribute\Broadcast;
  */
 final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
 {
+    use UidTrait;
+
     private Generator $generator;
     private EntityClassGenerator $entityClassGenerator;
-    private PhpCompatUtil $phpCompatUtil;
 
     public function __construct(
         private FileManager $fileManager,
@@ -56,7 +59,6 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
         ?string $projectDirectory = null,
         ?Generator $generator = null,
         ?EntityClassGenerator $entityClassGenerator = null,
-        ?PhpCompatUtil $phpCompatUtil = null,
     ) {
         if (null !== $projectDirectory) {
             @trigger_error('The $projectDirectory constructor argument is no longer used since 1.41.0', \E_USER_DEPRECATED);
@@ -74,13 +76,6 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             $this->entityClassGenerator = new EntityClassGenerator($generator, $this->doctrineHelper);
         } else {
             $this->entityClassGenerator = $entityClassGenerator;
-        }
-
-        if (null === $phpCompatUtil) {
-            @trigger_error(sprintf('Passing a "%s" instance as 6th argument is mandatory since version 1.41.0', PhpCompatUtil::class), \E_USER_DEPRECATED);
-            $this->phpCompatUtil = new PhpCompatUtil($this->fileManager);
-        } else {
-            $this->phpCompatUtil = $phpCompatUtil;
         }
     }
 
@@ -105,12 +100,18 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             ->setHelp(file_get_contents(__DIR__.'/../Resources/help/MakeEntity.txt'))
         ;
 
+        $this->addWithUuidOption($command);
+
         $inputConfig->setArgumentAsNonInteractive('name');
     }
 
     public function interact(InputInterface $input, ConsoleStyle $io, Command $command): void
     {
         if ($input->getArgument('name')) {
+            if (!$this->verifyEntityName($input->getArgument('name'))) {
+                throw new \InvalidArgumentException('An entity can only have ASCII letters');
+            }
+
             return;
         }
 
@@ -119,16 +120,23 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
                 'This command will generate any missing methods (e.g. getters & setters) for a class or all classes in a namespace.',
                 'To overwrite any existing methods, re-run this command with the --overwrite flag',
             ], null, 'fg=yellow');
-            $classOrNamespace = $io->ask('Enter a class or namespace to regenerate', $this->getEntityNamespace(), [Validator::class, 'notBlank']);
+            $classOrNamespace = $io->ask('Enter a class or namespace to regenerate', $this->getEntityNamespace(), Validator::notBlank(...));
 
             $input->setArgument('name', $classOrNamespace);
 
             return;
         }
 
+        $this->checkIsUsingUid($input);
+
         $argument = $command->getDefinition()->getArgument('name');
         $question = $this->createEntityClassQuestion($argument->getDescription());
         $entityClassName = $io->askQuestion($question);
+
+        while (!$this->verifyEntityName($entityClassName)) {
+            $io->error('An entity can only have ASCII letters');
+            $entityClassName = $io->askQuestion($question);
+        }
 
         $input->setArgument('name', $entityClassName);
 
@@ -152,6 +160,11 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
             $description = $command->getDefinition()->getOption('broadcast')->getDescription();
             $question = new ConfirmationQuestion($description, false);
             $isBroadcast = $io->askQuestion($question);
+
+            // Mercure is needed
+            if ($isBroadcast && !class_exists(MercureExtension::class)) {
+                throw new RuntimeCommandException('Please run "composer require symfony/mercure-bundle". It is needed to broadcast entities.');
+            }
 
             $input->setOption('broadcast', $isBroadcast);
         }
@@ -178,11 +191,10 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
         if (!$classExists) {
             $broadcast = $input->getOption('broadcast');
             $entityPath = $this->entityClassGenerator->generateEntityClass(
-                $entityClassDetails,
-                $input->getOption('api-resource'),
-                false,
-                true,
-                $broadcast
+                entityClassDetails: $entityClassDetails,
+                apiResource: $input->getOption('api-resource'),
+                broadcast: $broadcast,
+                useUuidIdentifier: $this->getIdType(),
             );
 
             if ($broadcast) {
@@ -321,7 +333,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
         if (null !== $input && $input->getOption('broadcast')) {
             $dependencies->addClassDependency(
                 Broadcast::class,
-                'ux-turbo-mercure'
+                'ux-turbo'
             );
         }
 
@@ -410,13 +422,13 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
 
         if ('string' === $type) {
             // default to 255, avoid the question
-            $classProperty->length = $io->ask('Field length', 255, [Validator::class, 'validateLength']);
+            $classProperty->length = $io->ask('Field length', 255, Validator::validateLength(...));
         } elseif ('decimal' === $type) {
             // 10 is the default value given in \Doctrine\DBAL\Schema\Column::$_precision
-            $classProperty->precision = $io->ask('Precision (total number of digits stored: 100.00 would be 5)', 10, [Validator::class, 'validatePrecision']);
+            $classProperty->precision = $io->ask('Precision (total number of digits stored: 100.00 would be 5)', 10, Validator::validatePrecision(...));
 
             // 0 is the default value given in \Doctrine\DBAL\Schema\Column::$_scale
-            $classProperty->scale = $io->ask('Scale (number of decimals to store: 100.00 would be 2)', 0, [Validator::class, 'validateScale']);
+            $classProperty->scale = $io->ask('Scale (number of decimals to store: 100.00 would be 2)', 0, Validator::validateScale(...));
         }
 
         if ($io->confirm('Can this field be null in the database (nullable)', false)) {
@@ -528,7 +540,7 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
     private function createEntityClassQuestion(string $questionText): Question
     {
         $question = new Question($questionText);
-        $question->setValidator([Validator::class, 'notBlank']);
+        $question->setValidator(Validator::notBlank(...));
         $question->setAutocompleterValues($this->doctrineHelper->getEntitiesForAutocomplete());
 
         return $question;
@@ -806,6 +818,11 @@ final class MakeEntity extends AbstractMaker implements InputAwareMakerInterface
         });
 
         return $io->askQuestion($question);
+    }
+
+    private function verifyEntityName(string $entityName): bool
+    {
+        return preg_match('/^[a-zA-Z\\\\]+$/', $entityName);
     }
 
     private function createClassManipulator(string $path, ConsoleStyle $io, bool $overwrite): ClassSourceManipulator

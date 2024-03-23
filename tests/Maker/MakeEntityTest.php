@@ -44,18 +44,12 @@ class MakeEntityTest extends MakerTestCase
             ;
         }
 
-        // @legacy - MakeEntity uses ux-turbo-mercure (archived), it needs to use ux-turbo (mercure built in) for Symfony 7.0
-        if ('7.0.x-dev' === $_SERVER['SYMFONY_VERSION']) {
-            return $this->createMakerTest()
-                ->skipTest('symfony/ux-turbo-mercure is not supported on Symfony 7.')
-            ;
-        }
-
         return $this->createMakeEntityTest()
             ->preRun(function (MakerTestRunner $runner) {
                 // installed manually later so that the compatibility check can run first
-                $runner->runProcess('composer require symfony/ux-turbo-mercure');
+                $runner->runProcess('composer require symfony/ux-turbo');
             })
+            ->addExtraDependencies('mercure', 'twig')
         ;
     }
 
@@ -108,6 +102,21 @@ class MakeEntityTest extends MakerTestCase
             }),
         ];
 
+        yield 'it_does_not_validate_entity_name_with_accent' => [$this->createMakeEntityTest()
+            ->run(function (MakerTestRunner $runner) {
+                $runner->runMaker([
+                    // entity class with accent
+                    'Usé',
+                    // entity class without accent
+                    'User',
+                    // no fields
+                    '',
+                ]);
+
+                $this->runEntityTest($runner);
+            }),
+        ];
+
         yield 'it_creates_a_new_class_and_api_resource' => [$this->createMakeEntityTest()
             ->addExtraDependencies('api')
             ->run(function (MakerTestRunner $runner) {
@@ -125,6 +134,46 @@ class MakeEntityTest extends MakerTestCase
                 $content = file_get_contents($runner->getPath('src/Entity/User.php'));
                 $this->assertStringContainsString('use ApiPlatform\Metadata\ApiResource;', $content);
                 $this->assertStringContainsString('#[ApiResource]', $content);
+
+                $this->runEntityTest($runner);
+            }),
+        ];
+
+        yield 'it_creates_a_new_class_with_uuid' => [$this->createMakeEntityTest()
+            ->addExtraDependencies('symfony/uid')
+            ->run(function (MakerTestRunner $runner) {
+                $runner->runMaker([
+                    // entity class name
+                    'User',
+                    // add not additional fields
+                    '',
+                ], '--with-uuid');
+
+                $this->assertFileExists($runner->getPath('src/Entity/User.php'));
+
+                $content = file_get_contents($runner->getPath('src/Entity/User.php'));
+                $this->assertStringContainsString('use Symfony\Component\Uid\Uuid;', $content);
+                $this->assertStringContainsString('[ORM\CustomIdGenerator(class: \'doctrine.uuid_generator\')]', $content);
+
+                $this->runEntityTest($runner);
+            }),
+        ];
+
+        yield 'it_creates_a_new_class_with_ulid' => [$this->createMakeEntityTest()
+            ->addExtraDependencies('symfony/uid')
+            ->run(function (MakerTestRunner $runner) {
+                $runner->runMaker([
+                    // entity class name
+                    'User',
+                    // add not additional fields
+                    '',
+                ], '--with-ulid');
+
+                $this->assertFileExists($runner->getPath('src/Entity/User.php'));
+
+                $content = file_get_contents($runner->getPath('src/Entity/User.php'));
+                $this->assertStringContainsString('use Symfony\Component\Uid\Ulid;', $content);
+                $this->assertStringContainsString('[ORM\CustomIdGenerator(class: \'doctrine.ulid_generator\')]', $content);
 
                 $this->runEntityTest($runner);
             }),
@@ -604,6 +653,22 @@ class MakeEntityTest extends MakerTestCase
 
                 $this->assertFileExists($runner->getPath('src/Entity/User.php'));
                 $this->runEntityTest($runner);
+            }),
+        ];
+
+        yield 'it_generates_entity_with_turbo_without_mercure' => [$this->createMakeEntityTest()
+            ->preRun(function (MakerTestRunner $runner) {
+                $runner->runProcess('composer require symfony/ux-turbo');
+            })
+            ->addExtraDependencies('twig')
+            ->run(function (MakerTestRunner $runner) {
+                $runner->runMaker([
+                    'User', // entity class
+                    'n', // no broadcast
+                    '',
+                ]);
+
+                $this->assertFileExists($runner->getPath('src/Entity/User.php'));
             }),
         ];
     }
