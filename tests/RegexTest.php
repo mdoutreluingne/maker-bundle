@@ -12,21 +12,30 @@
 namespace Symfony\Bundle\MakerBundle\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\MakerBundle\Maker\MakeWebhook;
 use Symfony\Bundle\MakerBundle\Test\MakerTestEnvironment;
 
+/**
+ * Common class for testing regex's used in MakerBundle.
+ *
+ * Create a new test method and dataProvider to test regex
+ * expressions introduced in MakerBundle
+ *
+ * @author Jesse Rushlow <jr@rushlow.dev>
+ */
 class RegexTest extends TestCase
 {
-    /** @dataProvider regexDataProvider */
-    public function testRegex(string $data, array $expectedResult): void
+    /** @dataProvider generatedFilesRegexDataProvider */
+    public function testMakerTestEnvironmentGeneratedFilesRegex(string $subjectData, array $expectedResult): void
     {
         $result = [];
 
-        preg_match_all(MakerTestEnvironment::GENERATED_FILES_REGEX, $data, $result, \PREG_PATTERN_ORDER);
+        preg_match_all(MakerTestEnvironment::GENERATED_FILES_REGEX, $subjectData, $result, \PREG_PATTERN_ORDER);
 
         self::assertSame($expectedResult, $result[1]);
     }
 
-    public function regexDataProvider(): \Generator
+    private function generatedFilesRegexDataProvider(): \Generator
     {
         yield 'Created Prefix' => ['created: test/something.php', ['test/something.php']];
         yield 'Updated Prefix' => ['updated: test/something.php', ['test/something.php']];
@@ -57,5 +66,28 @@ class RegexTest extends TestCase
             EOT,
             ['tests/FooBarTest.php'],
         ];
+    }
+
+    /** @dataProvider webhookNameRegexDataProvider */
+    public function testWebhookNameRegex(string $subjectData, bool $expectedResult): void
+    {
+        $result = preg_match(MakeWebhook::WEBHOOK_NAME_PATTERN, $subjectData);
+
+        self::assertSame($expectedResult, (bool) $result);
+    }
+
+    private function webhookNameRegexDataProvider(): \Generator
+    {
+        // Valid cases
+        yield 'Simple word' => ['mywebhook', true];
+        yield 'With underscore' => ['my_webhook', true];
+        yield 'With hyphen' => ['my-webhook', true];
+        yield 'With extend ascii chars' => ['éÿù', true];
+        yield 'With numbers' => ['mywebh00k', true];
+
+        // Invalid cases
+        yield 'Leading number' => ['1mywebh00k', false];
+        yield 'With space' => ['my webhook', false];
+        yield 'With non-ascii characters' => ['web🪝', false];
     }
 }

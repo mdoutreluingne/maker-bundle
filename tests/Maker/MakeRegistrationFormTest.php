@@ -192,6 +192,10 @@ class MakeRegistrationFormTest extends MakerTestCase
                     $this->assertFileExists($runner->getPath($file));
                 }
 
+                $userContents = file_get_contents($runner->getPath('src/Entity/User.php'));
+
+                $this->assertStringContainsString('private bool $isVerified = false', $userContents);
+
                 $this->runRegistrationTest($runner, 'it_generates_registration_form_with_verification.php');
             }),
         ];
@@ -223,6 +227,89 @@ class MakeRegistrationFormTest extends MakerTestCase
                 $this->assertStringContainsString('Success', $output);
 
                 $this->runRegistrationTest($runner, 'it_generates_registration_form_with_verification.php');
+            }),
+        ];
+
+        yield 'it_generates_registration_form_with_tests' => [$this->createRegistrationFormTest()
+            ->run(function (MakerTestRunner $runner) {
+                $this->makeUser($runner);
+
+                $output = $runner->runMaker([
+                    'n', // add UniqueEntity
+                    'n', // verify user
+                    'n', // automatically authenticate after registration
+                    'app_anonymous', // route number to redirect to
+                    'y', // Generate tests
+                ]);
+
+                $this->assertStringContainsString('Success', $output);
+                $this->assertFileExists($runner->getPath('tests/RegistrationControllerTest.php'));
+
+                $runner->configureDatabase();
+                $runner->runTests();
+            }),
+        ];
+
+        yield 'it_generates_registration_form_with_tests_using_flag' => [$this->createRegistrationFormTest()
+            ->run(function (MakerTestRunner $runner) {
+                $this->makeUser($runner);
+
+                $output = $runner->runMaker([
+                    'n', // add UniqueEntity
+                    'n', // verify user
+                    'n', // automatically authenticate after registration
+                    'app_anonymous', // route number to redirect to
+                ], '--with-tests');
+
+                $this->assertStringContainsString('Success', $output);
+                $this->assertFileExists($runner->getPath('tests/RegistrationControllerTest.php'));
+
+                $runner->configureDatabase();
+                $runner->runTests();
+            }),
+        ];
+
+        yield 'it_generates_registration_form_with_verification_and_with_tests' => [$this->createRegistrationFormTest()
+            ->addExtraDependencies('symfonycasts/verify-email-bundle')
+            // needed for internal functional test
+            ->addExtraDependencies('symfony/web-profiler-bundle', 'mailer')
+            ->run(function (MakerTestRunner $runner) {
+                $runner->writeFile(
+                    'config/packages/mailer.yaml',
+                    Yaml::dump(['framework' => [
+                        'mailer' => ['dsn' => 'null://null'],
+                    ]])
+                );
+
+                $this->makeUser($runner);
+
+                $output = $runner->runMaker([
+                    'n', // add UniqueEntity
+                    'y', // verify user
+                    'y', // require authentication to verify user email
+                    'jr@rushlow.dev', // from email address
+                    'SymfonyCasts', // From Name
+                    'n', // no authenticate after
+                    'app_anonymous', // route number to redirect to
+                    'y', // Generate tests
+                ]);
+
+                $this->assertStringContainsString('Success', $output);
+
+                $generatedFiles = [
+                    'src/Security/EmailVerifier.php',
+                    'templates/registration/confirmation_email.html.twig',
+                    'tests/RegistrationControllerTest.php',
+                ];
+
+                foreach ($generatedFiles as $file) {
+                    $this->assertFileExists($runner->getPath($file));
+                }
+
+                $runner->runConsole('cache:clear', [], '--env=test');
+
+                $runner->configureDatabase();
+                $runner->runTests();
             }),
         ];
     }
