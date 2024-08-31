@@ -23,6 +23,7 @@ use Symfony\Bundle\MakerBundle\FileManager;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Bundle\MakerBundle\Util\AutoloaderUtil;
 use Symfony\Bundle\MakerBundle\Util\MakerFileLinkFormatter;
+use Symfony\Bundle\MakerBundle\Util\TemplateComponentGenerator;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Filesystem\Filesystem;
@@ -99,7 +100,8 @@ class EntityRegeneratorTest extends TestCase
 
         $fileManager = new FileManager($fs, $autoloaderUtil, new MakerFileLinkFormatter(null), $tmpDir);
         $doctrineHelper = new DoctrineHelper('App\\Entity', $container->get('doctrine'));
-        $generator = new Generator($fileManager, 'App\\');
+        $templateComponentGenerator = new TemplateComponentGenerator(false, false, 'App');
+        $generator = new Generator(fileManager: $fileManager, namespacePrefix: 'App\\', templateComponentGenerator: $templateComponentGenerator);
         $entityClassGenerator = new EntityClassGenerator($generator, $doctrineHelper);
         $regenerator = new EntityRegenerator(
             $doctrineHelper,
@@ -160,6 +162,10 @@ class TestEntityRegeneratorKernel extends Kernel
                 'utf8' => true,
             ],
             'http_method_override' => false,
+            'handle_all_throwables' => true,
+            'php_errors' => [
+                'log' => true,
+            ],
         ]);
 
         $dbal = [
@@ -176,6 +182,9 @@ class TestEntityRegeneratorKernel extends Kernel
                     'alias' => 'EntityRegeneratorApp',
                     'type' => 'attribute',
                 ],
+            ],
+            'controller_resolver' => [
+                'auto_mapping' => false,
             ],
         ];
 
@@ -220,6 +229,10 @@ class TestXmlEntityRegeneratorKernel extends Kernel
                 'utf8' => true,
             ],
             'http_method_override' => false,
+            'handle_all_throwables' => true,
+            'php_errors' => [
+                'log' => true,
+            ],
         ]);
 
         $dbal = [
@@ -237,6 +250,9 @@ class TestXmlEntityRegeneratorKernel extends Kernel
                     'prefix' => 'Symfony\Bundle\MakerBundle\Tests\tmp\current_project_xml\src\Entity',
                     'alias' => 'EntityRegeneratorApp',
                 ],
+            ],
+            'controller_resolver' => [
+                'auto_mapping' => false,
             ],
         ];
 
