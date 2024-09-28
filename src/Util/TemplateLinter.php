@@ -12,6 +12,7 @@
 namespace Symfony\Bundle\MakerBundle\Util;
 
 use Symfony\Bundle\MakerBundle\Exception\RuntimeCommandException;
+use Symfony\Bundle\MakerBundle\FileManager;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -25,14 +26,12 @@ use Symfony\Component\Process\Process;
  */
 final class TemplateLinter
 {
-    // Version must match bundled version file name. e.g. php-cs-fixer-v3.49.9.phar
-    public const BUNDLED_PHP_CS_FIXER_VERSION = '3.49.0';
-
     private bool $usingBundledPhpCsFixer = true;
     private bool $usingBundledPhpCsFixerConfig = true;
     private bool $needsPhpCmdPrefix = true;
 
     public function __construct(
+        private FileManager $fileManager,
         private ?string $phpCsFixerBinaryPath = null,
         private ?string $phpCsFixerConfigPath = null,
     ) {
@@ -98,9 +97,15 @@ final class TemplateLinter
 
     private function setBinary(): void
     {
-        // Use Bundled PHP-CS-Fixer
+        // Use Bundled (shim) PHP-CS-Fixer
         if (null === $this->phpCsFixerBinaryPath) {
-            $this->phpCsFixerBinaryPath = \sprintf('%s/Resources/bin/php-cs-fixer-v%s.phar', \dirname(__DIR__), self::BUNDLED_PHP_CS_FIXER_VERSION);
+            $shimLocation = \sprintf('%s/vendor/bin/php-cs-fixer', \dirname(__DIR__, 2));
+
+            if (is_file($shimLocation)) {
+                $this->phpCsFixerBinaryPath = $shimLocation;
+
+                return;
+            }
 
             return;
         }
@@ -129,7 +134,8 @@ final class TemplateLinter
     private function setConfig(): void
     {
         // No config provided, but there is a dist config file in the project dir
-        if (null === $this->phpCsFixerConfigPath && file_exists($defaultConfigPath = '.php-cs-fixer.dist.php')) {
+        $defaultConfigPath = \sprintf('%s/.php-cs-fixer.dist.php', $this->fileManager->getRootDirectory());
+        if (null === $this->phpCsFixerConfigPath && file_exists($defaultConfigPath)) {
             $this->phpCsFixerConfigPath = $defaultConfigPath;
 
             $this->usingBundledPhpCsFixerConfig = false;
@@ -139,7 +145,7 @@ final class TemplateLinter
 
         // No config provided and no project dist config - use our config
         if (null === $this->phpCsFixerConfigPath) {
-            $this->phpCsFixerConfigPath = \dirname(__DIR__).'/Resources/config/php-cs-fixer.config.php';
+            $this->phpCsFixerConfigPath = \sprintf('%s/config/php-cs-fixer.config.php', \dirname(__DIR__, 2));
 
             return;
         }
